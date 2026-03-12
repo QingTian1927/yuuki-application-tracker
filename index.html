@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Yuuki's Application Tracker (YAT)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            canvas: {
+              light: '#f6f7f4',
+              dark: '#121410'
+            },
+            ink: {
+              light: '#202219',
+              dark: '#f1f4ea'
+            },
+            accent: {
+              50: '#f2f6e7',
+              100: '#e1ebc7',
+              300: '#b8d47a',
+              500: '#8fb83d',
+              600: '#73962c'
+            }
+          },
+          boxShadow: {
+            soft: '0 8px 25px rgba(26, 38, 8, 0.08)'
+          },
+          borderRadius: {
+            xl2: '1.2rem'
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    :root {
+      --bg-main: linear-gradient(120deg, #f4f7ea 0%, #f7f3ea 45%, #f3f5ef 100%);
+      --bg-card: rgba(255, 255, 255, 0.92);
+      --text-main: #202219;
+      --text-sub: #4f5643;
+      --line: #d9dfca;
+      --accent: #8fb83d;
+      --accent-strong: #73962c;
+      --warn: #b35a1c;
+      --bad: #aa2f34;
+      --good: #2f8f57;
+    }
+    .dark {
+      --bg-main: linear-gradient(135deg, #121410 0%, #1a1e15 40%, #171713 100%);
+      --bg-card: rgba(32, 36, 29, 0.86);
+      --text-main: #f1f4ea;
+      --text-sub: #bfc8b2;
+      --line: #394132;
+      --accent: #9ec75a;
+      --accent-strong: #b8d47a;
+      --warn: #e49d63;
+      --bad: #f07e84;
+      --good: #7dd7a5;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: "Segoe UI Variable", "Avenir Next", "Trebuchet MS", sans-serif;
+      background: var(--bg-main);
+      color: var(--text-main);
+    }
+    body {
+      background-attachment: fixed;
+    }
+    .glass-card {
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 25px rgba(26, 38, 8, 0.08);
+      border-radius: 1.2rem;
+      backdrop-filter: blur(6px);
+    }
+    .status-pill {
+      border-radius: 999px;
+      border: 1px solid transparent;
+      padding: 0.2rem 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      letter-spacing: 0.01em;
+    }
+    .profile-avatar-shell {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: linear-gradient(135deg, rgba(143, 184, 61, 0.18), rgba(143, 184, 61, 0.06));
+      color: var(--text-sub);
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .profile-avatar-shell svg {
+      width: 0.9rem;
+      height: 0.9rem;
+    }
+    .tab-btn {
+      transition: background 120ms ease, color 120ms ease;
+      border-radius: 0.5rem;
+      padding: 0.375rem 0.75rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-sub);
+      border: none;
+      cursor: pointer;
+      background: transparent;
+    }
+    .tab-btn:not(.active):hover {
+      background: rgba(0, 0, 0, 0.05);
+      color: var(--text-main);
+    }
+    .dark .tab-btn:not(.active):hover {
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--text-main);
+    }
+    .tab-btn.active {
+      background: var(--accent);
+      color: #1d2212;
+      font-weight: 600;
+    }
+    .tab-btn:focus-visible,
+    .focus-ring:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    select,
+    option,
+    optgroup {
+      color: var(--text-main);
+      background-color: rgba(255, 255, 255, 0.96);
+    }
+    select {
+      accent-color: var(--accent);
+    }
+    option:checked,
+    option:hover,
+    option:focus {
+      background: var(--accent);
+      color: #1d2212;
+    }
+    .dark select,
+    .dark option,
+    .dark optgroup {
+      color: var(--text-main);
+      background-color: #1f241c;
+    }
+    .dark option:checked,
+    .dark option:hover,
+    .dark option:focus {
+      background: var(--accent);
+      color: #1d2212;
+    }
+    .table-row {
+      transition: background-color 120ms ease;
+    }
+    .table-row:hover {
+      background: rgba(143, 184, 61, 0.09);
+    }
+    .fade-in {
+      animation: fadeIn 180ms ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .hidden-section {
+      display: none;
+    }
+    .metric-value {
+      font-feature-settings: "tnum";
+    }
+    .scroll-shell {
+      scrollbar-width: thin;
+      scrollbar-color: var(--line) transparent;
+    }
+    .scroll-shell::-webkit-scrollbar {
+      height: 8px;
+      width: 8px;
+    }
+    .scroll-shell::-webkit-scrollbar-thumb {
+      background: var(--line);
+      border-radius: 999px;
+    }
+    @media (max-width: 900px) {
+      .mobile-stack {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-full text-[color:var(--text-main)]">
+  <div class="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+    <header class="glass-card mb-5">
+
+      <!-- Desktop / tablet: single three-zone row -->
+      <div class="flex items-center h-14 sm:h-16 px-4 sm:px-5 gap-2 sm:gap-4">
+
+        <!-- LEFT: App brand -->
+        <div class="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
+          <div class="h-8 w-8 rounded-lg bg-[color:var(--accent)] flex items-center justify-center flex-shrink-0" aria-hidden="true">
+            <svg viewBox="0 0 16 16" class="h-4 w-4" fill="none" stroke="#1d2212" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <!-- clipboard outline -->
+              <rect x="3" y="2.5" width="10" height="12" rx="1.2"/>
+              <!-- top clip -->
+              <path d="M6 2.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1"/>
+              <!-- list lines -->
+              <line x1="5.5" y1="6.5" x2="10.5" y2="6.5"/>
+              <line x1="5.5" y1="9"   x2="10.5" y2="9"/>
+              <line x1="5.5" y1="11.5" x2="8.5" y2="11.5"/>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <h1 class="text-sm sm:text-base font-bold leading-tight tracking-tight truncate">Yuuki's Application Tracker</h1>
+            <p class="text-xs text-[color:var(--text-sub)] leading-tight hidden sm:block">Offline-first opportunity tracker</p>
+          </div>
+        </div>
+
+        <!-- CENTER: Navigation (hidden on mobile, tabs row shown below instead) -->
+        <nav class="hidden sm:flex flex-1 items-center justify-center" aria-label="Main tabs">
+          <div class="flex items-center gap-0.5">
+            <button class="tab-btn focus-ring active" data-tab="dashboard">Dashboard</button>
+            <button class="tab-btn focus-ring" data-tab="applications">Applications</button>
+            <button class="tab-btn focus-ring" data-tab="analytics">Analytics</button>
+            <button class="tab-btn focus-ring" data-tab="settings">Settings</button>
+          </div>
+        </nav>
+        <!-- Pushes profile to the right on mobile -->
+        <span class="flex-1 sm:hidden" aria-hidden="true"></span>
+
+        <!-- RIGHT: User profile -->
+        <button id="header-profile-btn" class="focus-ring flex items-center gap-2 sm:gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-black/5 dark:hover:bg-white/[0.07] flex-shrink-0" title="Go to Settings" aria-label="User profile — go to settings">
+          <div class="min-w-0 hidden sm:block text-right">
+            <p id="header-username" class="text-sm font-semibold leading-tight truncate text-[color:var(--text-main)]">Yuuki</p>
+            <p id="header-workspace" class="text-xs text-[color:var(--text-sub)] leading-tight">Personal workspace</p>
+          </div>
+          <img id="header-avatar" src="" alt="Profile avatar" class="hidden h-8 w-8 rounded-full border border-[color:var(--line)] object-cover flex-shrink-0" />
+          <div id="header-avatar-placeholder" class="profile-avatar-shell flex-shrink-0" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 20a6 6 0 0 0-12 0"></path>
+              <circle cx="12" cy="8" r="4"></circle>
+            </svg>
+          </div>
+        </button>
+      </div>
+
+      <!-- Mobile-only: navigation tab row -->
+      <div class="sm:hidden border-t border-[color:var(--line)] px-4 py-2">
+        <div class="flex items-center gap-0.5 flex-wrap" role="navigation" aria-label="Main navigation">
+          <button class="tab-btn focus-ring active" data-tab="dashboard">Dashboard</button>
+          <button class="tab-btn focus-ring" data-tab="applications">Applications</button>
+          <button class="tab-btn focus-ring" data-tab="analytics">Analytics</button>
+          <button class="tab-btn focus-ring" data-tab="settings">Settings</button>
+        </div>
+      </div>
+
+    </header>
+
+    <main>
+      <section id="dashboard-section" class="fade-in" data-section="dashboard">
+        <div class="grid mobile-stack grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+          <article class="glass-card p-4">
+            <p class="text-xs uppercase tracking-wide text-[color:var(--text-sub)]">Total Applications</p>
+            <p id="metric-total" class="metric-value text-2xl font-bold mt-1">0</p>
+          </article>
+          <article class="glass-card p-4">
+            <p class="text-xs uppercase tracking-wide text-[color:var(--text-sub)]">Interviews</p>
+            <p id="metric-interviews" class="metric-value text-2xl font-bold mt-1">0</p>
+          </article>
+          <article class="glass-card p-4">
+            <p class="text-xs uppercase tracking-wide text-[color:var(--text-sub)]">Offers</p>
+            <p id="metric-offers" class="metric-value text-2xl font-bold mt-1">0</p>
+          </article>
+          <article class="glass-card p-4">
+            <p class="text-xs uppercase tracking-wide text-[color:var(--text-sub)]">Ghosted</p>
+            <p id="metric-ghosted" class="metric-value text-2xl font-bold mt-1">0</p>
+          </article>
+        </div>
+
+        <div class="grid mobile-stack grid-cols-3 gap-3 sm:gap-4 mt-4">
+          <article class="glass-card p-4">
+            <p class="text-xs uppercase tracking-wide text-[color:var(--text-sub)]">Interview Rate</p>
+            <p id="metric-interview-rate" class="metric-value text-xl font-semibold mt-1">0%</p>
+          </article>
+          <article class="glass-card p-4">
+            <p class="text-xs uppercase tracking-wide text-[color:var(--text-sub)]">Offer Rate</p>
+            <p id="metric-offer-rate" class="metric-value text-xl font-semibold mt-1">0%</p>
+          </article>
+          <article class="glass-card p-4">
+            <p class="text-xs uppercase tracking-wide text-[color:var(--text-sub)]">Active Pipeline</p>
+            <p id="metric-active" class="metric-value text-xl font-semibold mt-1">0</p>
+          </article>
+        </div>
+
+        <div class="grid mobile-stack grid-cols-5 gap-4 mt-4">
+          <article class="glass-card p-4 col-span-3">
+            <div class="flex items-center justify-between">
+              <h2 class="font-semibold">Recent Applications</h2>
+              <button class="focus-ring text-sm rounded-md border border-[color:var(--line)] px-2 py-1" data-jump="applications">Go to table</button>
+            </div>
+            <div id="recent-list" class="mt-3 space-y-2"></div>
+          </article>
+          <article class="glass-card p-4 col-span-2">
+            <h2 class="font-semibold">Status Distribution</h2>
+            <div id="status-distribution" class="mt-3 space-y-2"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="applications-section" class="hidden-section" data-section="applications">
+        <div class="glass-card p-4">
+          <div class="grid mobile-stack grid-cols-6 gap-2">
+            <input id="search-input" class="col-span-2 rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-3 py-2 text-sm" placeholder="Search title, org, notes..." />
+            <select id="filter-status" class="rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-2 py-2 text-sm"></select>
+            <select id="filter-type" class="rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-2 py-2 text-sm"></select>
+            <select id="filter-source" class="rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-2 py-2 text-sm"></select>
+            <select id="filter-location" class="rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-2 py-2 text-sm"></select>
+          </div>
+          <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <label for="sort-select" class="text-xs uppercase tracking-wide text-[color:var(--text-sub)]">Sort</label>
+              <select id="sort-select" class="rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-2 py-1.5 text-sm">
+                <option value="lastUpdate_desc">Last Update (newest)</option>
+                <option value="dateApplied_desc">Date Applied (newest)</option>
+                <option value="dateSaved_desc">Date Saved (newest)</option>
+                <option value="title_asc">Title (A-Z)</option>
+                <option value="organization_asc">Organization (A-Z)</option>
+                <option value="status_asc">Status (A-Z)</option>
+              </select>
+            </div>
+            <p id="result-count" class="text-sm text-[color:var(--text-sub)]">0 results</p>
+          </div>
+
+          <div class="mt-3 overflow-auto scroll-shell">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="text-left text-[color:var(--text-sub)] border-b border-[color:var(--line)]">
+                  <th class="px-3 py-2 font-semibold">Title</th>
+                  <th class="px-3 py-2 font-semibold">Organization</th>
+                  <th class="px-3 py-2 font-semibold">Type</th>
+                  <th class="px-3 py-2 font-semibold">Status</th>
+                  <th class="px-3 py-2 font-semibold">Date Applied</th>
+                  <th class="px-3 py-2 font-semibold">Source</th>
+                  <th class="px-3 py-2 font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="applications-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="analytics-section" class="hidden-section" data-section="analytics">
+        <div class="grid mobile-stack grid-cols-2 gap-4">
+          <article class="glass-card p-4">
+            <h2 class="font-semibold">Application Funnel</h2>
+            <div class="mt-3 h-64 sm:h-72">
+              <canvas id="funnel-chart" class="h-full w-full"></canvas>
+            </div>
+          </article>
+          <article class="glass-card p-4">
+            <h2 class="font-semibold">Applications by Source</h2>
+            <div class="mt-3 h-64 sm:h-72">
+              <canvas id="source-chart" class="h-full w-full"></canvas>
+            </div>
+          </article>
+          <article class="glass-card p-4">
+            <h2 class="font-semibold">Monthly Activity</h2>
+            <div class="mt-3 h-64 sm:h-72">
+              <canvas id="monthly-chart" class="h-full w-full"></canvas>
+            </div>
+          </article>
+          <article class="glass-card p-4">
+            <h2 class="font-semibold">Status Distribution</h2>
+            <div class="mt-3 h-64 sm:h-72">
+              <canvas id="status-chart" class="h-full w-full"></canvas>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="settings-section" class="hidden-section" data-section="settings">
+        <div class="grid mobile-stack grid-cols-2 gap-4">
+          <article class="glass-card p-4">
+            <h2 class="font-semibold">User Profile</h2>
+            <div class="mt-3 space-y-3">
+              <div>
+                <label for="user-name-input" class="text-sm font-medium">User Name</label>
+                <input id="user-name-input" class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-3 py-2 text-sm" placeholder="Yuuki" />
+              </div>
+              <div>
+                <label for="avatar-input" class="text-sm font-medium">Avatar Image</label>
+                <input id="avatar-input" type="file" accept="image/*" class="mt-1 block w-full text-sm" />
+                <div class="mt-3 flex items-center gap-3">
+                  <img id="avatar-preview" src="" alt="Avatar preview" class="hidden h-14 w-14 rounded-full border border-[color:var(--line)] object-cover" />
+                  <button id="clear-avatar-btn" class="focus-ring rounded-md border border-[color:var(--line)] px-2 py-1 text-sm">Clear Avatar</button>
+                </div>
+              </div>
+              <button id="save-profile-btn" class="focus-ring rounded-lg bg-[color:var(--accent)] px-3 py-2 text-sm font-semibold text-[#1d2212] hover:bg-[color:var(--accent-strong)]">Save Profile</button>
+            </div>
+          </article>
+
+          <article class="glass-card p-4">
+            <h2 class="font-semibold">Theme</h2>
+            <div class="mt-3 space-y-2">
+              <label class="flex items-center gap-2 text-sm">
+                <input type="radio" name="theme" value="system" class="focus-ring" />
+                System
+              </label>
+              <label class="flex items-center gap-2 text-sm">
+                <input type="radio" name="theme" value="light" class="focus-ring" />
+                Light
+              </label>
+              <label class="flex items-center gap-2 text-sm">
+                <input type="radio" name="theme" value="dark" class="focus-ring" />
+                Dark
+              </label>
+            </div>
+            <p class="mt-3 text-xs text-[color:var(--text-sub)]">Theme preference is saved locally and applied immediately.</p>
+          </article>
+
+          <article class="glass-card p-4 col-span-2">
+            <h2 class="font-semibold">Data</h2>
+            <p class="mt-2 text-sm text-[color:var(--text-sub)]">Import or export your tracker data from one place.</p>
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <button id="export-json-btn" class="focus-ring rounded-lg border border-[color:var(--line)] px-3 py-2 text-sm font-medium hover:bg-white/70 dark:hover:bg-black/10">Export JSON</button>
+              <button id="export-csv-btn" class="focus-ring rounded-lg border border-[color:var(--line)] px-3 py-2 text-sm font-medium hover:bg-white/70 dark:hover:bg-black/10">Export CSV</button>
+              <label for="import-json-input" class="focus-ring cursor-pointer rounded-lg border border-[color:var(--line)] px-3 py-2 text-sm font-medium hover:bg-white/70 dark:hover:bg-black/10">Import JSON</label>
+              <input id="import-json-input" class="hidden" type="file" accept="application/json" />
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <button id="add-fab" title="Add Application" class="focus-ring fixed bottom-6 right-6 z-20 rounded-full bg-[color:var(--accent)] px-5 py-3 text-sm font-semibold text-[#1d2212] shadow-soft hover:bg-[color:var(--accent-strong)]">+ Add Application</button>
+
+  <div id="app-modal" class="hidden fixed inset-0 z-30 bg-black/40 p-4">
+    <div class="mx-auto mt-2 sm:mt-8 max-w-3xl glass-card p-4 sm:p-5 max-h-[92vh] overflow-auto scroll-shell" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="flex items-center justify-between">
+        <h2 id="modal-title" class="text-lg font-semibold">Add Application</h2>
+        <button id="close-modal-btn" class="focus-ring rounded-md border border-[color:var(--line)] px-2 py-1 text-sm">Close</button>
+      </div>
+      <form id="app-form" class="mt-3 grid grid-cols-2 gap-3">
+        <input type="hidden" id="app-id" />
+
+        <div class="col-span-2 sm:col-span-1">
+          <label class="text-sm font-medium" for="title">Title *</label>
+          <input id="title" required class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-3 py-2 text-sm" />
+        </div>
+        <div class="col-span-2 sm:col-span-1">
+          <label class="text-sm font-medium" for="organization">Organization *</label>
+          <input id="organization" required class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-3 py-2 text-sm" />
+        </div>
+
+        <div>
+          <label class="text-sm font-medium" for="type">Type</label>
+          <select id="type" class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-2 py-2 text-sm"></select>
+        </div>
+        <div>
+          <label class="text-sm font-medium" for="status">Status</label>
+          <select id="status" class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-2 py-2 text-sm"></select>
+        </div>
+
+        <div>
+          <label class="text-sm font-medium" for="field">Field</label>
+          <input id="field" class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-sm font-medium" for="location">Location</label>
+          <input id="location" class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-3 py-2 text-sm" />
+        </div>
+
+        <div>
+          <label class="text-sm font-medium" for="workMode">Work Mode</label>
+          <input id="workMode" placeholder="remote / onsite / hybrid" class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-sm font-medium" for="salary">Salary</label>
+          <input id="salary" class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-3 py-2 text-sm" />
+        </div>
+
+        <div>
+          <label class="text-sm font-medium" for="source">Source</label>
+          <input id="source" placeholder="LinkedIn, portal, referral" class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-sm font-medium" for="url">URL</label>
+          <input id="url" type="url" class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-3 py-2 text-sm" />
+        </div>
+
+        <div>
+          <label class="text-sm font-medium" for="dateSaved">Date Saved</label>
+          <input id="dateSaved" type="date" class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="text-sm font-medium" for="dateApplied">Date Applied</label>
+          <input id="dateApplied" type="date" class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-3 py-2 text-sm" />
+        </div>
+
+        <div class="col-span-2 sm:col-span-1">
+          <label class="text-sm font-medium" for="contactPerson">Contact Person</label>
+          <input id="contactPerson" class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-3 py-2 text-sm" />
+        </div>
+
+        <div class="col-span-2">
+          <label class="text-sm font-medium" for="notes">Notes</label>
+          <textarea id="notes" rows="3" class="mt-1 w-full rounded-lg border border-[color:var(--line)] bg-white/80 dark:bg-black/20 px-3 py-2 text-sm"></textarea>
+        </div>
+
+        <div class="col-span-2 flex justify-end gap-2 mt-1">
+          <button type="button" id="cancel-btn" class="focus-ring rounded-lg border border-[color:var(--line)] px-3 py-2 text-sm font-medium">Cancel</button>
+          <button type="submit" class="focus-ring rounded-lg bg-[color:var(--accent)] px-3 py-2 text-sm font-semibold text-[#1d2212] hover:bg-[color:var(--accent-strong)]">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const APP_SCHEMA_FIELDS = [
+        'id', 'title', 'organization', 'type', 'field', 'location', 'workMode', 'salary',
+        'source', 'url', 'status', 'dateSaved', 'dateApplied', 'lastUpdate', 'contactPerson', 'notes'
+      ];
+
+      const STATUS_OPTIONS = [
+        'saved', 'applied', 'screening', 'interview', 'final', 'offer',
+        'accepted', 'rejected', 'withdrawn', 'ghosted'
+      ];
+
+      const TYPE_OPTIONS = ['job', 'internship', 'part-time', 'scholarship', 'fellowship', 'grant'];
+      // ── Editable greeting list ──────────────────────────────────────────
+      // One entry is picked randomly each time the app loads.
+      // Add, remove, or reword lines freely — just keep the array valid JS.
+      const GREETING_TEMPLATES = [
+        'Welcome back.',
+        'Good to see you.',
+        'Ready to chase the next opportunity?',
+        "Let's keep the momentum going.",
+        'Another day, another opportunity.',
+        'Back at it.',
+        "Let's move the pipeline forward.",
+        'Your applications are waiting.',
+        "Let's make some progress today.",
+        'Your tracker is ready.',
+        'Ganbatte! Your applications await.',
+        'Every application is a step forward.',
+        'Your next offer could be one click away.',
+        'Stay consistent. Results follow.',
+        'Time to update the pipeline.',
+        'New day, new chances.',
+        'Keep showing up. It pays off.',
+        'The right role is out there.',
+        'Progress over perfection.',
+        'One more application closer to yes.',
+      ];
+      // ────────────────────────────────────────────────────────────────────
+      const DB_NAME = 'yat-db';
+      const DB_VERSION = 1;
+      const STORE_APPLICATIONS = 'applications';
+      const STORE_META = 'meta';
+      const SETTINGS_KEY = 'yat-settings-v1';
+
+      class DatabaseService {
+        constructor() {
+          this.db = null;
+        }
+
+        async init() {
+          if (this.db) return this.db;
+          this.db = await new Promise((resolve, reject) => {
+            const req = indexedDB.open(DB_NAME, DB_VERSION);
+
+            req.onupgradeneeded = () => {
+              const db = req.result;
+              if (!db.objectStoreNames.contains(STORE_APPLICATIONS)) {
+                const store = db.createObjectStore(STORE_APPLICATIONS, { keyPath: 'id' });
+                store.createIndex('status', 'status', { unique: false });
+                store.createIndex('type', 'type', { unique: false });
+                store.createIndex('source', 'source', { unique: false });
+                store.createIndex('location', 'location', { unique: false });
+                store.createIndex('dateApplied', 'dateApplied', { unique: false });
+                store.createIndex('lastUpdate', 'lastUpdate', { unique: false });
+              }
+              if (!db.objectStoreNames.contains(STORE_META)) {
+                db.createObjectStore(STORE_META, { keyPath: 'key' });
+              }
+            };
+
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+          });
+          return this.db;
+        }
+
+        tx(storeName, mode = 'readonly') {
+          const tx = this.db.transaction(storeName, mode);
+          return tx.objectStore(storeName);
+        }
+
+        requestToPromise(req) {
+          return new Promise((resolve, reject) => {
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+          });
+        }
+
+        async getAllApplications() {
+          await this.init();
+          return this.requestToPromise(this.tx(STORE_APPLICATIONS).getAll());
+        }
+
+        async upsertApplication(app) {
+          await this.init();
+          return this.requestToPromise(this.tx(STORE_APPLICATIONS, 'readwrite').put(app));
+        }
+
+        async bulkUpsertApplications(apps) {
+          await this.init();
+          return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(STORE_APPLICATIONS, 'readwrite');
+            const store = transaction.objectStore(STORE_APPLICATIONS);
+            apps.forEach((app) => store.put(app));
+            transaction.oncomplete = () => resolve(true);
+            transaction.onerror = () => reject(transaction.error);
+          });
+        }
+
+        async getApplicationById(id) {
+          await this.init();
+          return this.requestToPromise(this.tx(STORE_APPLICATIONS).get(id));
+        }
+
+        async deleteApplication(id) {
+          await this.init();
+          return this.requestToPromise(this.tx(STORE_APPLICATIONS, 'readwrite').delete(id));
+        }
+
+        async clearApplications() {
+          await this.init();
+          return this.requestToPromise(this.tx(STORE_APPLICATIONS, 'readwrite').clear());
+        }
+
+        async queryApplications(predicateFn) {
+          const all = await this.getAllApplications();
+          return all.filter(predicateFn);
+        }
+
+        async getMeta(key) {
+          await this.init();
+          return this.requestToPromise(this.tx(STORE_META).get(key));
+        }
+
+        async setMeta(key, value) {
+          await this.init();
+          return this.requestToPromise(this.tx(STORE_META, 'readwrite').put({ key, value }));
+        }
+      }
+
+      class ApplicationService {
+        constructor(databaseService) {
+          this.db = databaseService;
+        }
+
+        sanitize(record) {
+          const clean = {};
+          APP_SCHEMA_FIELDS.forEach((field) => {
+            if (field === 'id') return;
+            clean[field] = (record[field] ?? '').toString().trim();
+          });
+
+          clean.title = clean.title || 'Untitled';
+          clean.organization = clean.organization || 'Unknown';
+          clean.type = TYPE_OPTIONS.includes(clean.type) ? clean.type : 'job';
+          clean.status = STATUS_OPTIONS.includes(clean.status) ? clean.status : 'saved';
+          clean.dateSaved = clean.dateSaved || new Date().toISOString().slice(0, 10);
+          clean.lastUpdate = new Date().toISOString();
+          clean.id = record.id || crypto.randomUUID();
+          return clean;
+        }
+
+        async ensureSeedData() {
+          const seeded = await this.db.getMeta('seeded');
+          if (seeded && seeded.value === true) return;
+
+          const samples = [
+            {
+              id: crypto.randomUUID(),
+              title: 'Frontend Engineer',
+              organization: 'Nimbus Labs',
+              type: 'job',
+              field: 'Web Development',
+              location: 'Tokyo',
+              workMode: 'hybrid',
+              salary: 'JPY 6.5M - 8M',
+              source: 'LinkedIn',
+              url: 'https://example.com/roles/frontend-engineer',
+              status: 'interview',
+              dateSaved: this.dateOffset(-11),
+              dateApplied: this.dateOffset(-8),
+              lastUpdate: new Date().toISOString(),
+              contactPerson: 'Mina Sato',
+              notes: 'Second round interview next week.'
+            },
+            {
+              id: crypto.randomUUID(),
+              title: 'AI Research Internship',
+              organization: 'Aster AI Institute',
+              type: 'internship',
+              field: 'Machine Learning',
+              location: 'Remote',
+              workMode: 'remote',
+              salary: 'Stipend available',
+              source: 'University Portal',
+              url: 'https://example.com/internships/ai-research',
+              status: 'applied',
+              dateSaved: this.dateOffset(-6),
+              dateApplied: this.dateOffset(-5),
+              lastUpdate: new Date().toISOString(),
+              contactPerson: 'Dr. Emiko Tan',
+              notes: 'Waiting for screening results.'
+            },
+            {
+              id: crypto.randomUUID(),
+              title: 'Global STEM Fellowship',
+              organization: 'North Star Foundation',
+              type: 'fellowship',
+              field: 'Education / STEM',
+              location: 'Singapore',
+              workMode: 'onsite',
+              salary: 'Funding + travel',
+              source: 'Referral',
+              url: 'https://example.com/fellowship/stem',
+              status: 'saved',
+              dateSaved: this.dateOffset(-2),
+              dateApplied: '',
+              lastUpdate: new Date().toISOString(),
+              contactPerson: 'Alia Noor',
+              notes: 'Finalize statement of purpose.'
+            }
+          ];
+
+          await this.db.bulkUpsertApplications(samples.map((x) => this.sanitize(x)));
+          await this.db.setMeta('seeded', true);
+        }
+
+        dateOffset(days) {
+          const d = new Date();
+          d.setDate(d.getDate() + days);
+          return d.toISOString().slice(0, 10);
+        }
+
+        async listAll() {
+          return this.db.getAllApplications();
+        }
+
+        async save(input) {
+          if (!input.title || !input.organization) {
+            throw new Error('Title and organization are required.');
+          }
+          const entity = this.sanitize(input);
+          await this.db.upsertApplication(entity);
+          return entity;
+        }
+
+        async remove(id) {
+          await this.db.deleteApplication(id);
+        }
+
+        async getById(id) {
+          return this.db.getApplicationById(id);
+        }
+
+        filterAndSort(apps, criteria) {
+          const searchTerm = (criteria.search || '').trim().toLowerCase();
+          const filtered = apps.filter((app) => {
+            const matchesSearch = !searchTerm || [
+              app.title,
+              app.organization,
+              app.notes,
+              app.source,
+              app.location,
+              app.field
+            ].join(' ').toLowerCase().includes(searchTerm);
+
+            const matchesStatus = !criteria.status || app.status === criteria.status;
+            const matchesType = !criteria.type || app.type === criteria.type;
+            const matchesSource = !criteria.source || app.source === criteria.source;
+            const matchesLocation = !criteria.location || app.location === criteria.location;
+
+            return matchesSearch && matchesStatus && matchesType && matchesSource && matchesLocation;
+          });
+
+          const [sortField, direction] = (criteria.sort || 'lastUpdate_desc').split('_');
+          const mul = direction === 'asc' ? 1 : -1;
+
+          filtered.sort((a, b) => {
+            const av = (a[sortField] || '').toString().toLowerCase();
+            const bv = (b[sortField] || '').toString().toLowerCase();
+            if (av < bv) return -1 * mul;
+            if (av > bv) return 1 * mul;
+            return 0;
+          });
+
+          return filtered;
+        }
+
+        async exportJSON() {
+          const data = await this.listAll();
+          return JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), applications: data }, null, 2);
+        }
+
+        toCSVValue(value) {
+          const raw = (value ?? '').toString();
+          const escaped = raw.replace(/"/g, '""');
+          return `"${escaped}"`;
+        }
+
+        async exportCSV() {
+          const data = await this.listAll();
+          const header = APP_SCHEMA_FIELDS.join(',');
+          const rows = data.map((item) => APP_SCHEMA_FIELDS.map((field) => this.toCSVValue(item[field])).join(','));
+          return [header, ...rows].join('\n');
+        }
+
+        async importJSONText(jsonText) {
+          let parsed;
+          try {
+            parsed = JSON.parse(jsonText);
+          } catch {
+            throw new Error('Invalid JSON file.');
+          }
+
+          if (!parsed || !Array.isArray(parsed.applications)) {
+            throw new Error('JSON must include an applications array.');
+          }
+
+          const normalized = parsed.applications.map((record) => this.sanitize(record));
+          await this.db.clearApplications();
+          await this.db.bulkUpsertApplications(normalized);
+          await this.db.setMeta('seeded', true);
+          return normalized.length;
+        }
+      }
+
+      class AnalyticsEngine {
+        computeSummary(applications) {
+          const total = applications.length;
+          const interviews = applications.filter((a) => ['interview', 'final'].includes(a.status)).length;
+          const offers = applications.filter((a) => a.status === 'offer' || a.status === 'accepted').length;
+          const ghosted = applications.filter((a) => a.status === 'ghosted').length;
+          const active = applications.filter((a) => ['saved', 'applied', 'screening', 'interview', 'final', 'offer'].includes(a.status)).length;
+
+          return {
+            total,
+            interviews,
+            offers,
+            ghosted,
+            interviewRate: total ? (interviews / total) * 100 : 0,
+            offerRate: total ? (offers / total) * 100 : 0,
+            active
+          };
+        }
+
+        statusCounts(applications) {
+          const map = {};
+          STATUS_OPTIONS.forEach((s) => { map[s] = 0; });
+          applications.forEach((a) => {
+            map[a.status] = (map[a.status] || 0) + 1;
+          });
+          return map;
+        }
+
+        sourceCounts(applications) {
+          const map = {};
+          applications.forEach((a) => {
+            const key = a.source || 'Unknown';
+            map[key] = (map[key] || 0) + 1;
+          });
+          return map;
+        }
+
+        monthlyCounts(applications) {
+          const map = {};
+          applications.forEach((a) => {
+            const date = a.dateApplied || a.dateSaved;
+            if (!date) return;
+            const month = date.slice(0, 7);
+            map[month] = (map[month] || 0) + 1;
+          });
+          return map;
+        }
+
+        funnelSeries(applications) {
+          const count = (statuses) => applications.filter((a) => statuses.includes(a.status)).length;
+          return [
+            count(['saved', 'applied', 'screening', 'interview', 'final', 'offer', 'accepted']),
+            count(['applied', 'screening', 'interview', 'final', 'offer', 'accepted']),
+            count(['interview', 'final', 'offer', 'accepted']),
+            count(['offer', 'accepted']),
+            count(['accepted'])
+          ];
+        }
+      }
+
+      class UIController {
+        constructor(appService, analytics) {
+          this.appService = appService;
+          this.analytics = analytics;
+          this.state = {
+            applications: [],
+            filtered: [],
+            activeTab: 'dashboard',
+            analyticsDirty: true,
+            filters: {
+              search: '',
+              status: '',
+              type: '',
+              source: '',
+              location: '',
+              sort: 'lastUpdate_desc'
+            },
+            greetingTemplate: GREETING_TEMPLATES[Math.floor(Math.random() * GREETING_TEMPLATES.length)],
+            charts: {}
+          };
+
+          this.els = this.cacheElements();
+        }
+
+        cacheElements() {
+          return {
+            tabButtons: [...document.querySelectorAll('.tab-btn')],
+            sections: [...document.querySelectorAll('[data-section]')],
+            jumpButtons: [...document.querySelectorAll('[data-jump]')],
+
+            metricTotal: document.getElementById('metric-total'),
+            metricInterviews: document.getElementById('metric-interviews'),
+            metricOffers: document.getElementById('metric-offers'),
+            metricGhosted: document.getElementById('metric-ghosted'),
+            metricInterviewRate: document.getElementById('metric-interview-rate'),
+            metricOfferRate: document.getElementById('metric-offer-rate'),
+            metricActive: document.getElementById('metric-active'),
+            recentList: document.getElementById('recent-list'),
+            statusDistribution: document.getElementById('status-distribution'),
+
+            searchInput: document.getElementById('search-input'),
+            filterStatus: document.getElementById('filter-status'),
+            filterType: document.getElementById('filter-type'),
+            filterSource: document.getElementById('filter-source'),
+            filterLocation: document.getElementById('filter-location'),
+            sortSelect: document.getElementById('sort-select'),
+            resultCount: document.getElementById('result-count'),
+            tbody: document.getElementById('applications-tbody'),
+
+            addFab: document.getElementById('add-fab'),
+            modal: document.getElementById('app-modal'),
+            modalTitle: document.getElementById('modal-title'),
+            closeModalBtn: document.getElementById('close-modal-btn'),
+            cancelBtn: document.getElementById('cancel-btn'),
+            form: document.getElementById('app-form'),
+
+            exportJsonBtn: document.getElementById('export-json-btn'),
+            exportCsvBtn: document.getElementById('export-csv-btn'),
+            importJsonInput: document.getElementById('import-json-input'),
+            headerAvatar: document.getElementById('header-avatar'),
+            headerAvatarPlaceholder: document.getElementById('header-avatar-placeholder'),
+            headerUsername: document.getElementById('header-username'),
+            headerWorkspace: document.getElementById('header-workspace'),
+            headerProfileBtn: document.getElementById('header-profile-btn'),
+
+            userNameInput: document.getElementById('user-name-input'),
+            avatarInput: document.getElementById('avatar-input'),
+            avatarPreview: document.getElementById('avatar-preview'),
+            clearAvatarBtn: document.getElementById('clear-avatar-btn'),
+            saveProfileBtn: document.getElementById('save-profile-btn'),
+            themeRadios: [...document.querySelectorAll('input[name="theme"]')],
+
+            funnelCanvas: document.getElementById('funnel-chart'),
+            sourceCanvas: document.getElementById('source-chart'),
+            monthlyCanvas: document.getElementById('monthly-chart'),
+            statusCanvas: document.getElementById('status-chart')
+          };
+        }
+
+        async init() {
+          this.populateStaticSelects();
+          this.bindEvents();
+          this.loadSettings();
+
+          await this.appService.ensureSeedData();
+          await this.refreshData();
+          this.showTab('dashboard');
+        }
+
+        populateStaticSelects() {
+          this.fillSelect(this.els.filterStatus, 'All Statuses', STATUS_OPTIONS);
+          this.fillSelect(this.els.filterType, 'All Types', TYPE_OPTIONS);
+          this.fillSelect(document.getElementById('status'), 'Select status', STATUS_OPTIONS, false);
+          this.fillSelect(document.getElementById('type'), 'Select type', TYPE_OPTIONS, false);
+        }
+
+        fillSelect(selectEl, allLabel, options, includeBlank = true) {
+          selectEl.innerHTML = '';
+          if (includeBlank) {
+            const blank = document.createElement('option');
+            blank.value = '';
+            blank.textContent = allLabel;
+            selectEl.appendChild(blank);
+          }
+          options.forEach((item) => {
+            const opt = document.createElement('option');
+            opt.value = item;
+            opt.textContent = this.titleCase(item);
+            selectEl.appendChild(opt);
+          });
+        }
+
+        bindEvents() {
+          this.els.tabButtons.forEach((btn) => {
+            btn.addEventListener('click', () => this.showTab(btn.dataset.tab));
+          });
+
+          this.els.jumpButtons.forEach((btn) => {
+            btn.addEventListener('click', () => this.showTab(btn.dataset.jump));
+          });
+
+          this.els.searchInput.addEventListener('input', this.debounce(() => {
+            this.state.filters.search = this.els.searchInput.value;
+            this.applyFiltersAndRenderTable();
+          }, 80));
+
+          [
+            ['filterStatus', 'status'],
+            ['filterType', 'type'],
+            ['filterSource', 'source'],
+            ['filterLocation', 'location']
+          ].forEach(([elKey, filterKey]) => {
+            this.els[elKey].addEventListener('change', () => {
+              this.state.filters[filterKey] = this.els[elKey].value;
+              this.applyFiltersAndRenderTable();
+            });
+          });
+
+          this.els.sortSelect.addEventListener('change', () => {
+            this.state.filters.sort = this.els.sortSelect.value;
+            this.applyFiltersAndRenderTable();
+          });
+
+          this.els.addFab.addEventListener('click', () => this.openModal());
+          this.els.closeModalBtn.addEventListener('click', () => this.closeModal());
+          this.els.cancelBtn.addEventListener('click', () => this.closeModal());
+
+          this.els.modal.addEventListener('click', (e) => {
+            if (e.target === this.els.modal) this.closeModal();
+          });
+
+          document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !this.els.modal.classList.contains('hidden')) {
+              this.closeModal();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+              e.preventDefault();
+              this.showTab('applications');
+              this.els.searchInput.focus();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+              e.preventDefault();
+              this.openModal();
+            }
+          });
+
+          this.els.form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.saveForm();
+          });
+
+          this.els.tbody.addEventListener('click', async (e) => {
+            const actionBtn = e.target.closest('[data-action]');
+            if (!actionBtn) return;
+            const id = actionBtn.dataset.id;
+            if (actionBtn.dataset.action === 'edit') {
+              const app = await this.appService.getById(id);
+              if (app) this.openModal(app);
+            }
+            if (actionBtn.dataset.action === 'delete') {
+              const ok = confirm('Delete this application record?');
+              if (!ok) return;
+              await this.appService.remove(id);
+              await this.refreshData();
+            }
+          });
+
+          this.els.exportJsonBtn.addEventListener('click', async () => {
+            const payload = await this.appService.exportJSON();
+            this.downloadFile('yat-export.json', payload, 'application/json');
+          });
+
+          this.els.exportCsvBtn.addEventListener('click', async () => {
+            const payload = await this.appService.exportCSV();
+            this.downloadFile('yat-export.csv', payload, 'text/csv');
+          });
+
+          this.els.importJsonInput.addEventListener('change', async () => {
+            const file = this.els.importJsonInput.files[0];
+            if (!file) return;
+
+            const ok = confirm('This will replace all existing records. Continue?');
+            if (!ok) {
+              this.els.importJsonInput.value = '';
+              return;
+            }
+
+            try {
+              const text = await file.text();
+              const count = await this.appService.importJSONText(text);
+              alert(`Imported ${count} records.`);
+              await this.refreshData();
+            } catch (err) {
+              alert(err.message || 'Import failed.');
+            } finally {
+              this.els.importJsonInput.value = '';
+            }
+          });
+
+          this.els.saveProfileBtn.addEventListener('click', () => {
+            this.saveSettings();
+            alert('Profile settings saved.');
+          });
+
+          this.els.clearAvatarBtn.addEventListener('click', () => {
+            this.els.avatarPreview.src = '';
+            this.els.avatarPreview.classList.add('hidden');
+            this.saveSettings();
+          });
+
+          this.els.avatarInput.addEventListener('change', async () => {
+            const file = this.els.avatarInput.files[0];
+            if (!file) return;
+            const dataUrl = await this.fileToDataURL(file);
+            this.els.avatarPreview.src = dataUrl;
+            this.els.avatarPreview.classList.remove('hidden');
+          });
+
+          this.els.themeRadios.forEach((radio) => {
+            radio.addEventListener('change', () => {
+              this.applyTheme(radio.value);
+              this.saveSettings();
+            });
+          });
+
+          this.els.headerProfileBtn.addEventListener('click', () => {
+            this.showTab('settings');
+          });
+        }
+
+        async refreshData() {
+          const apps = await this.appService.listAll();
+          this.state.applications = apps;
+          this.applyDynamicFilterOptions(apps);
+          this.applyFiltersAndRenderTable();
+          this.renderDashboard();
+          this.state.analyticsDirty = true;
+          if (this.state.activeTab === 'analytics') {
+            this.renderAnalytics();
+          }
+        }
+
+        applyDynamicFilterOptions(apps) {
+          const unique = (k) => [...new Set(apps.map((a) => a[k]).filter(Boolean))].sort();
+          const sourceCurrent = this.els.filterSource.value;
+          const locationCurrent = this.els.filterLocation.value;
+          this.fillSelect(this.els.filterSource, 'All Sources', unique('source'));
+          this.fillSelect(this.els.filterLocation, 'All Locations', unique('location'));
+          this.els.filterSource.value = sourceCurrent;
+          this.els.filterLocation.value = locationCurrent;
+        }
+
+        applyFiltersAndRenderTable() {
+          const filtered = this.appService.filterAndSort(this.state.applications, this.state.filters);
+          this.state.filtered = filtered;
+          this.renderApplicationsTable(filtered);
+          this.els.resultCount.textContent = `${filtered.length} result${filtered.length === 1 ? '' : 's'}`;
+        }
+
+        renderApplicationsTable(apps) {
+          const frag = document.createDocumentFragment();
+          this.els.tbody.innerHTML = '';
+
+          if (apps.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td colspan="7" class="px-3 py-5 text-center text-[color:var(--text-sub)]">No applications found.</td>`;
+            this.els.tbody.appendChild(row);
+            return;
+          }
+
+          apps.forEach((app) => {
+            const openLinkControl = app.url && this.isValidUrl(app.url)
+              ? `<a href="${this.escapeHtml(app.url)}" target="_blank" rel="noreferrer noopener" data-action="open-url" data-id="${app.id}" class="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-md border border-[color:var(--line)]" title="Open saved URL" aria-label="Open saved URL">
+                  <svg viewBox="0 0 20 20" aria-hidden="true" class="h-3.5 w-3.5 fill-none stroke-current" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4h5v5"></path>
+                    <path d="M9 11l7-7"></path>
+                    <path d="M16 11v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h3"></path>
+                  </svg>
+                </a>`
+              : '';
+            const tr = document.createElement('tr');
+            tr.className = 'table-row border-b border-[color:var(--line)]';
+            tr.innerHTML = `
+              <td class="px-3 py-2 font-medium">${this.escapeHtml(app.title)}</td>
+              <td class="px-3 py-2">${this.escapeHtml(app.organization)}</td>
+              <td class="px-3 py-2">${this.titleCase(app.type)}</td>
+              <td class="px-3 py-2">${this.statusBadge(app.status)}</td>
+              <td class="px-3 py-2">${app.dateApplied || '-'}</td>
+              <td class="px-3 py-2">${this.escapeHtml(app.source || '-')}</td>
+              <td class="px-3 py-2">
+                <div class="flex flex-wrap gap-2">
+                  ${openLinkControl}
+                  <button data-action="edit" data-id="${app.id}" class="focus-ring rounded-md border border-[color:var(--line)] px-2 py-1 text-xs">Edit</button>
+                  <button data-action="delete" data-id="${app.id}" class="focus-ring rounded-md border border-[color:var(--line)] px-2 py-1 text-xs text-[color:var(--bad)]">Delete</button>
+                </div>
+              </td>
+            `;
+            frag.appendChild(tr);
+          });
+
+          this.els.tbody.appendChild(frag);
+        }
+
+        renderDashboard() {
+          const apps = this.state.applications;
+          const summary = this.analytics.computeSummary(apps);
+          this.els.metricTotal.textContent = String(summary.total);
+          this.els.metricInterviews.textContent = String(summary.interviews);
+          this.els.metricOffers.textContent = String(summary.offers);
+          this.els.metricGhosted.textContent = String(summary.ghosted);
+          this.els.metricInterviewRate.textContent = `${summary.interviewRate.toFixed(1)}%`;
+          this.els.metricOfferRate.textContent = `${summary.offerRate.toFixed(1)}%`;
+          this.els.metricActive.textContent = String(summary.active);
+
+          const recent = [...apps]
+            .sort((a, b) => (a.lastUpdate < b.lastUpdate ? 1 : -1))
+            .slice(0, 7);
+
+          this.els.recentList.innerHTML = '';
+          if (recent.length === 0) {
+            this.els.recentList.innerHTML = '<p class="text-sm text-[color:var(--text-sub)]">No recent applications.</p>';
+          } else {
+            const frag = document.createDocumentFragment();
+            recent.forEach((app) => {
+              const row = document.createElement('div');
+              row.className = 'rounded-lg border border-[color:var(--line)] px-3 py-2 text-sm';
+              row.innerHTML = `
+                <div class="flex items-center justify-between gap-2">
+                  <div>
+                    <p class="font-medium">${this.escapeHtml(app.title)}</p>
+                    <p class="text-xs text-[color:var(--text-sub)]">${this.escapeHtml(app.organization)} • ${app.dateApplied || app.dateSaved || '-'}</p>
+                  </div>
+                  <div>${this.statusBadge(app.status)}</div>
+                </div>
+              `;
+              frag.appendChild(row);
+            });
+            this.els.recentList.appendChild(frag);
+          }
+
+          const statusMap = this.analytics.statusCounts(apps);
+          const total = apps.length || 1;
+          this.els.statusDistribution.innerHTML = '';
+          const top = Object.entries(statusMap)
+            .filter(([, v]) => v > 0)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6);
+
+          if (top.length === 0) {
+            this.els.statusDistribution.innerHTML = '<p class="text-sm text-[color:var(--text-sub)]">No status data.</p>';
+          } else {
+            top.forEach(([status, count]) => {
+              const pct = (count / total) * 100;
+              const item = document.createElement('div');
+              item.innerHTML = `
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span>${this.titleCase(status)}</span>
+                  <span>${count}</span>
+                </div>
+                <div class="h-2 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
+                  <div class="h-2 rounded-full bg-[color:var(--accent)]" style="width:${pct.toFixed(1)}%"></div>
+                </div>
+              `;
+              this.els.statusDistribution.appendChild(item);
+            });
+          }
+        }
+
+        renderAnalytics() {
+          if (!this.state.analyticsDirty) return;
+          const apps = this.state.applications;
+
+          this.renderFunnelChart(apps);
+          this.renderSourceChart(apps);
+          this.renderMonthlyChart(apps);
+          this.renderStatusChart(apps);
+
+          this.state.analyticsDirty = false;
+        }
+
+        chartColors() {
+          const styles = getComputedStyle(document.documentElement);
+          return {
+            accent: styles.getPropertyValue('--accent').trim(),
+            accentStrong: styles.getPropertyValue('--accent-strong').trim(),
+            text: styles.getPropertyValue('--text-main').trim(),
+            line: styles.getPropertyValue('--line').trim(),
+            good: styles.getPropertyValue('--good').trim(),
+            bad: styles.getPropertyValue('--bad').trim(),
+            warn: styles.getPropertyValue('--warn').trim()
+          };
+        }
+
+        baseChartOptions() {
+          const c = this.chartColors();
+          return {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: c.text } }
+            },
+            scales: {
+              x: { ticks: { color: c.text }, grid: { color: c.line } },
+              y: { ticks: { color: c.text }, grid: { color: c.line } }
+            }
+          };
+        }
+
+        killChart(key) {
+          if (this.state.charts[key]) {
+            this.state.charts[key].destroy();
+            this.state.charts[key] = null;
+          }
+        }
+
+        renderFunnelChart(apps) {
+          const c = this.chartColors();
+          this.killChart('funnel');
+          const labels = ['Saved', 'Applied', 'Interview', 'Offer', 'Accepted'];
+          const data = this.analytics.funnelSeries(apps);
+          this.state.charts.funnel = new Chart(this.els.funnelCanvas, {
+            type: 'bar',
+            data: {
+              labels,
+              datasets: [{
+                label: 'Applications',
+                data,
+                backgroundColor: [c.accentStrong, c.accent, c.good, c.warn, c.good]
+              }]
+            },
+            options: this.baseChartOptions()
+          });
+        }
+
+        renderSourceChart(apps) {
+          this.killChart('source');
+          const c = this.chartColors();
+          const map = this.analytics.sourceCounts(apps);
+          const labels = Object.keys(map);
+          const data = Object.values(map);
+          this.state.charts.source = new Chart(this.els.sourceCanvas, {
+            type: 'bar',
+            data: {
+              labels,
+              datasets: [{ label: 'Count', data, backgroundColor: c.accent }]
+            },
+            options: this.baseChartOptions()
+          });
+        }
+
+        renderMonthlyChart(apps) {
+          this.killChart('monthly');
+          const c = this.chartColors();
+          const map = this.analytics.monthlyCounts(apps);
+          const labels = Object.keys(map).sort();
+          const data = labels.map((m) => map[m]);
+          this.state.charts.monthly = new Chart(this.els.monthlyCanvas, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [{
+                label: 'Applications',
+                data,
+                fill: false,
+                borderColor: c.accent,
+                backgroundColor: c.accentStrong,
+                tension: 0.25
+              }]
+            },
+            options: this.baseChartOptions()
+          });
+        }
+
+        renderStatusChart(apps) {
+          this.killChart('status');
+          const c = this.chartColors();
+          const map = this.analytics.statusCounts(apps);
+          const labels = Object.keys(map).filter((k) => map[k] > 0);
+          const data = labels.map((k) => map[k]);
+          this.state.charts.status = new Chart(this.els.statusCanvas, {
+            type: 'doughnut',
+            data: {
+              labels: labels.map((x) => this.titleCase(x)),
+              datasets: [{
+                data,
+                backgroundColor: [c.accent, c.accentStrong, c.good, c.warn, c.bad, '#5ab1c7', '#c29ded', '#f6c55a']
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { labels: { color: c.text } }
+              }
+            }
+          });
+        }
+
+        showTab(tabId) {
+          this.state.activeTab = tabId;
+          this.els.tabButtons.forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.tab === tabId);
+          });
+
+          this.els.sections.forEach((section) => {
+            const isCurrent = section.dataset.section === tabId;
+            section.classList.toggle('hidden-section', !isCurrent);
+            section.classList.toggle('fade-in', isCurrent);
+          });
+
+          if (tabId === 'analytics') {
+            this.renderAnalytics();
+          }
+        }
+
+        openModal(app = null) {
+          this.els.form.reset();
+          document.getElementById('app-id').value = '';
+          document.getElementById('dateSaved').value = new Date().toISOString().slice(0, 10);
+          document.getElementById('status').value = 'saved';
+          document.getElementById('type').value = 'job';
+
+          if (app) {
+            this.els.modalTitle.textContent = 'Edit Application';
+            APP_SCHEMA_FIELDS.forEach((key) => {
+              if (key === 'lastUpdate') return;
+              const el = document.getElementById(key);
+              if (!el) return;
+              el.value = app[key] || '';
+            });
+          } else {
+            this.els.modalTitle.textContent = 'Add Application';
+          }
+
+          this.els.modal.classList.remove('hidden');
+          setTimeout(() => document.getElementById('title').focus(), 10);
+        }
+
+        closeModal() {
+          this.els.modal.classList.add('hidden');
+        }
+
+        async saveForm() {
+          const payload = {};
+          APP_SCHEMA_FIELDS.forEach((field) => {
+            if (field === 'lastUpdate') return;
+            const el = document.getElementById(field);
+            if (el) payload[field] = el.value;
+          });
+
+          if (!payload.title.trim() || !payload.organization.trim()) {
+            alert('Please fill in Title and Organization.');
+            return;
+          }
+
+          if (payload.url && !this.isValidUrl(payload.url)) {
+            alert('Please enter a valid URL.');
+            return;
+          }
+
+          await this.appService.save(payload);
+          this.closeModal();
+          await this.refreshData();
+        }
+
+        titleCase(text) {
+          return (text || '').toString().replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+        }
+
+        statusBadge(status) {
+          const lightMap = {
+            saved: 'background:rgba(114,130,95,0.15);color:#4b5d3c;border-color:rgba(114,130,95,0.35);',
+            applied: 'background:rgba(90,177,199,0.2);color:#1f6c80;border-color:rgba(90,177,199,0.35);',
+            screening: 'background:rgba(194,157,237,0.2);color:#7047a5;border-color:rgba(194,157,237,0.35);',
+            interview: 'background:rgba(125,215,165,0.2);color:#2d7a56;border-color:rgba(125,215,165,0.35);',
+            final: 'background:rgba(246,197,90,0.2);color:#8b6214;border-color:rgba(246,197,90,0.35);',
+            offer: 'background:rgba(47,143,87,0.2);color:#1f6f43;border-color:rgba(47,143,87,0.35);',
+            accepted: 'background:rgba(47,143,87,0.25);color:#1a5f39;border-color:rgba(47,143,87,0.45);',
+            rejected: 'background:rgba(170,47,52,0.2);color:#89242a;border-color:rgba(170,47,52,0.35);',
+            withdrawn: 'background:rgba(179,90,28,0.2);color:#874217;border-color:rgba(179,90,28,0.35);',
+            ghosted: 'background:rgba(111,120,132,0.25);color:#3c4650;border-color:rgba(111,120,132,0.35);'
+          };
+          const darkMap = {
+            saved: 'background:rgba(158,199,90,0.2);color:#e0efc4;border-color:rgba(158,199,90,0.4);',
+            applied: 'background:rgba(90,177,199,0.22);color:#d7f4fb;border-color:rgba(90,177,199,0.42);',
+            screening: 'background:rgba(194,157,237,0.24);color:#f0ddff;border-color:rgba(194,157,237,0.44);',
+            interview: 'background:rgba(125,215,165,0.22);color:#d8f9e7;border-color:rgba(125,215,165,0.42);',
+            final: 'background:rgba(246,197,90,0.22);color:#fff1c7;border-color:rgba(246,197,90,0.42);',
+            offer: 'background:rgba(47,143,87,0.24);color:#d2f3df;border-color:rgba(47,143,87,0.44);',
+            accepted: 'background:rgba(47,143,87,0.3);color:#ecfff3;border-color:rgba(47,143,87,0.5);',
+            rejected: 'background:rgba(170,47,52,0.24);color:#ffd7da;border-color:rgba(170,47,52,0.44);',
+            withdrawn: 'background:rgba(179,90,28,0.24);color:#ffe0c7;border-color:rgba(179,90,28,0.44);',
+            ghosted: 'background:rgba(111,120,132,0.28);color:#e1e6ec;border-color:rgba(111,120,132,0.45);'
+          };
+          const map = document.documentElement.classList.contains('dark') ? darkMap : lightMap;
+          const style = map[status] || map.saved;
+          return `<span class="status-pill" style="${style}">${this.titleCase(status)}</span>`;
+        }
+
+        debounce(fn, wait) {
+          let t = null;
+          return (...args) => {
+            clearTimeout(t);
+            t = setTimeout(() => fn(...args), wait);
+          };
+        }
+
+        downloadFile(filename, content, mimeType) {
+          const blob = new Blob([content], { type: mimeType });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        }
+
+        isValidUrl(value) {
+          try {
+            const u = new URL(value);
+            return u.protocol === 'http:' || u.protocol === 'https:';
+          } catch {
+            return false;
+          }
+        }
+
+        escapeHtml(value) {
+          return (value ?? '').toString()
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+        }
+
+        fileToDataURL(file) {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(file);
+          });
+        }
+
+        getCurrentSettings() {
+          const stored = localStorage.getItem(SETTINGS_KEY);
+          if (!stored) {
+            return { userName: '', avatarDataUrl: '', theme: 'system' };
+          }
+          try {
+            const parsed = JSON.parse(stored);
+            return {
+              userName: parsed.userName || '',
+              avatarDataUrl: parsed.avatarDataUrl || '',
+              theme: ['system', 'light', 'dark'].includes(parsed.theme) ? parsed.theme : 'system'
+            };
+          } catch {
+            return { userName: '', avatarDataUrl: '', theme: 'system' };
+          }
+        }
+
+        renderHeaderProfile(settings) {
+          const name = settings.userName || 'Yuuki';
+          this.els.headerUsername.textContent = name;
+          this.els.headerWorkspace.textContent = this.state.greetingTemplate;
+
+          if (settings.avatarDataUrl) {
+            this.els.headerAvatar.src = settings.avatarDataUrl;
+            this.els.headerAvatar.classList.remove('hidden');
+            this.els.headerAvatarPlaceholder.classList.add('hidden');
+            return;
+          }
+
+          this.els.headerAvatar.src = '';
+          this.els.headerAvatar.classList.add('hidden');
+          this.els.headerAvatarPlaceholder.classList.remove('hidden');
+        }
+
+        loadSettings() {
+          const settings = this.getCurrentSettings();
+          this.els.userNameInput.value = settings.userName;
+          this.els.avatarPreview.src = '';
+          this.els.avatarPreview.classList.add('hidden');
+          if (settings.avatarDataUrl) {
+            this.els.avatarPreview.src = settings.avatarDataUrl;
+            this.els.avatarPreview.classList.remove('hidden');
+          }
+          this.renderHeaderProfile(settings);
+
+          const radio = this.els.themeRadios.find((r) => r.value === settings.theme);
+          if (radio) radio.checked = true;
+          this.applyTheme(settings.theme);
+        }
+
+        saveSettings() {
+          const existing = this.getCurrentSettings();
+          const chosenTheme = this.els.themeRadios.find((r) => r.checked)?.value || 'system';
+          const avatarDataUrl = this.els.avatarPreview.classList.contains('hidden') ? '' : this.els.avatarPreview.src;
+
+          const next = {
+            ...existing,
+            userName: this.els.userNameInput.value.trim(),
+            avatarDataUrl,
+            theme: chosenTheme
+          };
+
+          localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+          this.renderHeaderProfile(next);
+          this.applyTheme(chosenTheme);
+        }
+
+        applyTheme(theme) {
+          const shouldDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', shouldDark);
+          this.state.analyticsDirty = true;
+          this.applyFiltersAndRenderTable();
+          this.renderDashboard();
+          if (this.state.activeTab === 'analytics') {
+            this.renderAnalytics();
+          }
+        }
+      }
+
+      async function bootstrap() {
+        if (!('indexedDB' in window)) {
+          alert('IndexedDB is not supported in this browser.');
+          return;
+        }
+
+        const db = new DatabaseService();
+        const appService = new ApplicationService(db);
+        const analytics = new AnalyticsEngine();
+        const ui = new UIController(appService, analytics);
+        await ui.init();
+      }
+
+      bootstrap().catch((err) => {
+        console.error(err);
+        alert('Failed to initialize application. Check console for details.');
+      });
+    })();
+  </script>
+</body>
+</html>

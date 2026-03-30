@@ -1469,7 +1469,9 @@
 
           if (app) {
             this.els.modalTitle.textContent = 'Edit Application';
+            document.getElementById('app-id').value = app.id || '';
             APP_SCHEMA_FIELDS.forEach((key) => {
+              if (key === 'id') return;
               if (key === 'lastUpdate') return;
               const el = document.getElementById(key);
               if (!el) return;
@@ -1489,7 +1491,9 @@
 
         async saveForm() {
           const payload = {};
+          payload.id = document.getElementById('app-id').value || '';
           APP_SCHEMA_FIELDS.forEach((field) => {
+            if (field === 'id') return;
             if (field === 'lastUpdate') return;
             const el = document.getElementById(field);
             if (el) payload[field] = el.value;
